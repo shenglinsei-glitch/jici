@@ -5,13 +5,10 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  // 替换为你的 GitHub 仓库名
   base: '/jici/', 
-
   plugins: [
     react(),
     tailwindcss(),
-
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
@@ -19,30 +16,26 @@ export default defineConfig({
         name: '积词',
         short_name: '积词',
         description: '本地单词学习与记录',
-        // start_url 建议也跟随 base 路径
         start_url: '/jici/', 
         display: 'standalone',
         background_color: '#ffffff',
         theme_color: '#53BEE8',
         icons: [
           {
-            src: 'pwa-192.png', // 确保此文件在 public 文件夹下
+            src: 'pwa-192x192.png', // ⭐ 必须和 public 下的文件名完全一致
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: 'pwa-512.png',
+            src: 'pwa-512x512.png', // ⭐ 必须和 public 下的文件名完全一致
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any'
           },
         ],
       },
     }),
   ],
-
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
+  // ... 其余保持不变
 })
