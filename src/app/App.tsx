@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { WordListScreen } from './components/WordListScreen';
 import { SearchScreen } from './components/SearchScreen';
 import { WordAddScreen } from './components/WordAddScreen';
@@ -270,7 +270,7 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route
@@ -358,7 +358,7 @@ function App() {
           <Route path="*" element={<Navigate to="/list" replace />} />
         </Routes>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
