@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, RotateCcw, X } from 'lucide-react';
+import { Settings, X } from 'lucide-react';
 import { Word, Folder } from '../types';
 
 interface FlashcardScreenProps {
@@ -14,7 +14,7 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  
+
   // Settings state
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [frontDisplayType, setFrontDisplayType] = useState<FrontDisplayType>('japanese');
@@ -22,7 +22,7 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
   // Initialize with all folders selected
   useEffect(() => {
     if (folders.length > 0 && selectedFolders.length === 0) {
-      setSelectedFolders(folders.map(f => f.id));
+      setSelectedFolders(folders.map((f) => f.id));
     }
   }, [folders]);
 
@@ -31,13 +31,13 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
     const now = new Date();
     switch (difficulty) {
       case 'hard':
-        now.setDate(now.getDate() + 1); // 翌日
+        now.setDate(now.getDate() + 1);
         break;
       case 'good':
-        now.setDate(now.getDate() + 3); // 3日後
+        now.setDate(now.getDate() + 3);
         break;
       case 'easy':
-        now.setDate(now.getDate() + 7); // 1週間後
+        now.setDate(now.getDate() + 7);
         break;
     }
     return now.toISOString();
@@ -45,34 +45,31 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
 
   // Check if word should be reviewed today
   const shouldReviewToday = (word: Word): boolean => {
-    if (!word.studyState) return true; // 未学習の単語は表示
-    if (word.studyState.difficulty === 'completed') return false; // 完了した単語は表示しない
-    
+    if (!word.studyState) return true;
+    if (word.studyState.difficulty === 'completed') return false;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const nextReviewDate = new Date(word.studyState.nextReviewDate);
     nextReviewDate.setHours(0, 0, 0, 0);
-    
+
     return nextReviewDate <= today;
   };
 
   // Filter words based on selected folders and review date
   const getFilteredWords = () => {
-    let filtered = words.filter(w => w.word);
-    
-    // Filter by folders
+    let filtered = words.filter((w) => w.word);
+
     if (selectedFolders.length > 0) {
-      filtered = filtered.filter(w => {
+      filtered = filtered.filter((w) => {
         if (!w.folders || w.folders.length === 0) {
           return selectedFolders.includes('no-folder');
         }
-        return w.folders.some(folderId => selectedFolders.includes(folderId));
+        return w.folders.some((folderId) => selectedFolders.includes(folderId));
       });
     }
-    
-    // Filter by review date
-    filtered = filtered.filter(w => shouldReviewToday(w));
-    
+
+    filtered = filtered.filter((w) => shouldReviewToday(w));
     return filtered;
   };
 
@@ -90,9 +87,8 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
   // Get front content based on settings with fallback
   const getFrontContent = (word: Word): { type: string; content: any } => {
     const defaultOrder: FrontDisplayType[] = ['japanese', 'chinese', 'english', 'image'];
-    
-    const typesToTry = [frontDisplayType, ...defaultOrder.filter(t => t !== frontDisplayType)];
-    
+    const typesToTry = [frontDisplayType, ...defaultOrder.filter((t) => t !== frontDisplayType)];
+
     for (const type of typesToTry) {
       switch (type) {
         case 'japanese':
@@ -109,68 +105,65 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
           break;
       }
     }
-    
+
     return { type: 'japanese', content: word.word || '???' };
   };
 
   const handleNext = (difficulty: 'hard' | 'good' | 'easy') => {
     const word = studyWords[currentIndex];
     const currentState = word.studyState;
-    
+
     let newDifficulty: 'hard' | 'good' | 'easy' | 'completed' = difficulty;
     let consecutiveEasyCount = 0;
     let consecutiveGoodCount = 0;
-    
+
     if (currentState) {
       consecutiveEasyCount = currentState.consecutiveEasyCount;
       consecutiveGoodCount = currentState.consecutiveGoodCount;
     }
-    
-    // Handle consecutive selections
+
     if (difficulty === 'easy') {
       if (currentState?.difficulty === 'easy') {
         consecutiveEasyCount += 1;
         if (consecutiveEasyCount >= 2) {
-          newDifficulty = 'completed'; // 連続2回簡単 → 完了
+          newDifficulty = 'completed';
         }
       } else {
         consecutiveEasyCount = 1;
       }
-      consecutiveGoodCount = 0; // Reset good count
+      consecutiveGoodCount = 0;
     } else if (difficulty === 'good') {
       if (currentState?.difficulty === 'good') {
         consecutiveGoodCount += 1;
         if (consecutiveGoodCount >= 2) {
-          newDifficulty = 'easy'; // 連続2回普通 → 簡単
+          newDifficulty = 'easy';
           consecutiveGoodCount = 0;
         }
       } else {
         consecutiveGoodCount = 1;
       }
-      consecutiveEasyCount = 0; // Reset easy count
+      consecutiveEasyCount = 0;
     } else {
-      // hard resets both counters
       consecutiveEasyCount = 0;
       consecutiveGoodCount = 0;
     }
-    
-    // Update word study state
+
     const updatedWord = {
       ...word,
       studyState: {
         difficulty: newDifficulty,
-        nextReviewDate: newDifficulty === 'completed' 
-          ? new Date('2099-12-31').toISOString() // 完了した単語は遠い未来に設定
-          : getNextReviewDate(difficulty),
+        nextReviewDate:
+          newDifficulty === 'completed'
+            ? new Date('2099-12-31').toISOString()
+            : getNextReviewDate(difficulty),
         consecutiveEasyCount,
         consecutiveGoodCount,
         lastReviewDate: new Date().toISOString(),
       },
     };
-    
+
     onUpdateWord(word.id, updatedWord);
-    
-    // Move to next card
+
     if (currentIndex < studyWords.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
@@ -178,47 +171,130 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
     }
   };
 
-  const toggleFolder = (folderId: string) => {
-    setSelectedFolders(prev => {
-      if (prev.includes(folderId)) {
-        return prev.filter(id => id !== folderId);
-      } else {
-        return [...prev, folderId];
-      }
-    });
-  };
-
-  const toggleAllFolders = () => {
-    if (selectedFolders.length === folders.length + 1) {
-      setSelectedFolders([]);
-    } else {
-      setSelectedFolders([...folders.map(f => f.id), 'no-folder']);
-    }
-  };
-
-  const handleReset = () => {
-    setCurrentIndex(0);
-    setIsFlipped(false);
-  };
-
   if (studyWords.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white flex items-center justify-center pb-20">
-        <div className="text-center p-8">
-          <p className="text-gray-600 mb-4">学習する単語がありません</p>
-          <p className="text-sm text-gray-500">
-            {selectedFolders.length === 0 
-              ? 'フォルダを選択するか、単語を追加してから学習を始めましょう' 
-              : '今日復習する単語はありません。おめでとうございます！'}
-          </p>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="mt-4 px-6 py-2 bg-[#53BEE8] text-white rounded-lg hover:bg-[#53BEE8]/90 transition-colors"
-          >
-            設定を開く
-          </button>
+      <>
+        <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center pb-20">
+          <div className="text-center p-8">
+            <p className="text-gray-900 text-2xl mb-4">学習する単語がありません</p>
+            <p className="text-base text-gray-600">
+              {selectedFolders.length === 0
+                ? 'フォルダを選択するか、単語を追加してから学習を始めましょう'
+                : '今日復習する単語はありません。おめでとうございます！'}
+            </p>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="mt-6 px-8 py-3 bg-white/80 backdrop-blur-xl text-[#1B7FA3] rounded-full hover:bg-white transition-colors border-none shadow-md ring-1 ring-black/5"
+            >
+              設定を開く
+            </button>
+          </div>
         </div>
-      </div>
+
+        {showSettings && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl">
+                <h2 className="text-xl">学習設定</h2>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={24} className="text-gray-600" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div>
+                  <h3 className="text-base mb-3 text-gray-700">学習範囲を選択</h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {folders.map((folder) => (
+                      <label
+                        key={folder.id}
+                        className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedFolders.includes(folder.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedFolders([...selectedFolders, folder.id]);
+                            } else {
+                              setSelectedFolders(selectedFolders.filter((id) => id !== folder.id));
+                            }
+                          }}
+                          className="w-5 h-5 text-[#53BEE8] rounded focus:ring-2 focus:ring-[#53BEE8] border-gray-300"
+                        />
+                        <span className="text-gray-700">{folder.name}</span>
+                      </label>
+                    ))}
+                    <label className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedFolders.includes('no-folder')}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedFolders([...selectedFolders, 'no-folder']);
+                          } else {
+                            setSelectedFolders(selectedFolders.filter((id) => id !== 'no-folder'));
+                          }
+                        }}
+                        className="w-5 h-5 text-[#53BEE8] rounded focus:ring-2 focus:ring-[#53BEE8] border-gray-300"
+                      />
+                      <span className="text-gray-500 italic">フォルダ未設定の単語</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-base mb-3 text-gray-700">カード正面の表示</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { value: 'japanese' as FrontDisplayType, label: '日本語', icon: '🇯🇵' },
+                      { value: 'chinese' as FrontDisplayType, label: '中国語', icon: '🇨🇳' },
+                      { value: 'english' as FrontDisplayType, label: '英語', icon: '🇬🇧' },
+                      { value: 'image' as FrontDisplayType, label: '画像', icon: '🖼️' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setFrontDisplayType(option.value)}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          frontDisplayType === option.value
+                            ? 'border-[#53BEE8] bg-[#53BEE8]/5'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{option.icon}</div>
+                        <div className="text-sm text-gray-700">{option.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">💡 学習システムについて</p>
+                  <ul className="text-xs text-blue-700 mt-2 space-y-1 list-disc list-inside">
+                    <li>「難しい」→ 翌日に復習</li>
+                    <li>「普通」→ 3日後に復習</li>
+                    <li>「簡単」→ 1週間後に復習</li>
+                    <li>「簡単」または「普通」を2回連続 → 次のレベルへ</li>
+                    <li>「簡単」レベルで2回連続「簡単」→ 学習完了</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 sticky bottom-0 bg-white rounded-b-2xl">
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="w-full py-3 bg-[#53BEE8] text-white rounded-lg hover:bg-[#53BEE8]/90 transition-colors border-none"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -226,69 +302,68 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
   const totalWords = studyWords.length;
   const frontContent = getFrontContent(currentWord);
 
+  const cardShell =
+    'h-full rounded-[40px] bg-white/80 backdrop-blur-xl ring-1 ring-black/5 shadow-[0_18px_55px_rgba(0,0,0,0.12)] overflow-hidden';
+  const neutralMist =
+    'absolute inset-0 bg-gradient-to-br from-white/75 via-white/45 to-transparent pointer-events-none';
+
+  // ✅ border 제거 (회색 테두리 문제 해결)
+  const tintButtonBase =
+    'flex-1 py-4 rounded-2xl shadow-sm transition-colors active:translate-y-[1px] active:shadow-sm text-lg font-medium';
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-white pb-20 overflow-hidden">
-      <div className="max-w-4xl mx-auto h-[95vh] flex flex-col p-4">
-        {/* Top bar */}
-        <div className="flex items-center justify-between mb-6 mt-2">
-          <div className="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-            <span className="text-sm text-gray-700">
+    <div className="min-h-screen bg-[#F5F7FA] pb-20 overflow-hidden">
+      <div className="max-w-5xl mx-auto h-screen flex flex-col p-4">
+        <div className="flex items-center justify-between mb-8 mt-6">
+          <div className="bg-white/80 backdrop-blur-xl px-6 py-3 rounded-full shadow-md ring-1 ring-black/5">
+            <span className="text-lg text-gray-700 font-medium">
               {currentIndex + 1} / {totalWords}
             </span>
           </div>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-white/90 transition-colors"
+            className="p-3 bg-white/80 backdrop-blur-xl rounded-full shadow-md ring-1 ring-black/5 hover:bg-white transition-colors"
           >
-            <Settings size={20} className="text-gray-700" />
+            <Settings size={24} className="text-gray-700" />
           </button>
         </div>
 
-        {/* Card container */}
-        <div className="flex-1 flex items-center justify-center perspective-1000">
+        <div className="flex-1 flex items-center justify-center perspective-1000 px-4">
           <div
-            className={`relative w-full h-full max-h-[500px] transition-transform duration-500 transform-style-3d`}
+            className="relative w-full h-full max-w-3xl max-h-[600px] transition-transform duration-500 transform-style-3d"
             style={{
               transformStyle: 'preserve-3d',
               transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
             }}
           >
-            {/* Front card */}
+            {/* Front */}
             <div
               className={`absolute inset-0 backface-hidden ${isFlipped ? 'pointer-events-none' : ''}`}
               style={{ backfaceVisibility: 'hidden' }}
             >
               <div
-                className="h-full bg-gradient-to-b from-[#53BEE8] to-white rounded-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.04)] flex flex-col items-center justify-center p-8 relative overflow-hidden cursor-pointer"
-                style={{
-                  backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-                  backgroundSize: '20px 20px',
-                }}
+                className={`${cardShell} flex flex-col items-center justify-center p-12 relative cursor-pointer`}
                 onClick={() => setIsFlipped(true)}
               >
+                <div className={neutralMist} />
                 {frontContent.type === 'image' ? (
                   <img
                     src={frontContent.content}
                     alt="flashcard"
-                    className="max-w-full max-h-full object-contain rounded-2xl"
-                    style={{
-                      filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
-                    }}
+                    className="max-w-full max-h-full object-contain rounded-3xl shadow-lg relative z-10"
                   />
                 ) : (
-                  <h2
-                    className="text-5xl md:text-6xl text-[#5E5E5E] break-words text-center"
-                    style={{
-                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))',
-                    }}
-                  >
-                    {frontContent.content}
-                  </h2>
+                  <div className="relative z-10 flex flex-col items-center">
+                    <h2 className="text-7xl md:text-8xl text-[#4a5565] break-words text-center font-['SF_Pro:Regular',sans-serif] mb-4">
+                      {frontContent.content}
+                    </h2>
+                    <p className="text-base text-gray-400 mt-6">タップして答えを表示</p>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Back card */}
+            {/* Back */}
             <div
               className={`absolute inset-0 backface-hidden ${!isFlipped ? 'pointer-events-none' : ''}`}
               style={{
@@ -296,86 +371,87 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
                 transform: 'rotateY(180deg)',
               }}
             >
-              <div
-                className="h-full bg-gradient-to-b from-[#53BEE8] to-white rounded-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.04)] flex flex-col p-8 relative overflow-hidden"
-                style={{
-                  backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-                  backgroundSize: '20px 20px',
-                }}
-              >
-                {/* Back card content - centered, no titles */}
-                <div className="flex-1 flex flex-col justify-center items-center space-y-5 overflow-y-auto">
-                  {/* Japanese */}
-                  <div className="text-center">
-                    <p className="text-4xl text-[#5E5E5E]">{currentWord.word}</p>
-                  </div>
+              <div className={`${cardShell} flex flex-col p-8 relative`}>
+                <div className={neutralMist} />
 
-                  {/* Katakana */}
-                  <div className="text-center">
-                    <p className="text-2xl text-white">{currentWord.katakana}</p>
-                  </div>
-
-                  {/* Chinese */}
-                  {currentWord.chinese && (
+                {/* ✅ ここを修正：min-h-0 + justify-start + top padding で上部の切れを防ぐ */}
+                <div className="flex-1 min-h-0 overflow-y-auto relative z-10 px-2">
+                  <div className="flex flex-col items-center space-y-6 pt-6 pb-6">
                     <div className="text-center">
-                      <p className="text-2xl text-[#5E5E5E]">{currentWord.chinese}</p>
+                      <p className="text-5xl md:text-6xl text-[#4a5565] font-['SF_Pro:Regular',sans-serif]">
+                        {currentWord.word}
+                      </p>
                     </div>
-                  )}
 
-                  {/* English */}
-                  {currentWord.english && (
-                    <div className="text-center">
-                      <p className="text-2xl text-[#5E5E5E]">{currentWord.english}</p>
-                    </div>
-                  )}
+                    {currentWord.katakana && (
+                      <div className="text-center">
+                        <p className="text-2xl text-[rgba(74,85,101,0.7)]">{currentWord.katakana}</p>
+                      </div>
+                    )}
 
-                  {/* Phonetic */}
-                  {currentWord.phonetic && (
-                    <div className="text-center">
-                      <p className="text-lg text-[rgba(94,94,94,0.7)]">{currentWord.phonetic}</p>
-                    </div>
-                  )}
-
-                  {/* Other translations */}
-                  {currentWord.otherTranslations && currentWord.otherTranslations.length > 0 && (
-                    <div className="text-center space-y-1">
-                      {currentWord.otherTranslations.map((translation, index) => (
-                        <p key={index} className="text-base text-[rgba(94,94,94,0.8)]">
-                          {translation}
+                    {currentWord.japaneseExplanation && (
+                      <div className="text-center">
+                        <p className="text-xl text-[rgba(74,85,101,0.8)]">
+                          {currentWord.japaneseExplanation}
                         </p>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    )}
 
-                  {/* Image */}
-                  {currentWord.imageUrl && (
-                    <div className="flex justify-center mt-3">
-                      <img
-                        src={currentWord.imageUrl}
-                        alt={currentWord.word}
-                        className="w-40 h-40 object-cover rounded-2xl shadow-lg"
-                      />
-                    </div>
-                  )}
+                    {currentWord.chinese && (
+                      <div className="text-center pt-4 border-t border-gray-200 w-full">
+                        <p className="text-3xl text-[#4a5565]">{currentWord.chinese}</p>
+                      </div>
+                    )}
+
+                    {currentWord.english && (
+                      <div className="text-center">
+                        <p className="text-2xl text-[#4a5565]">{currentWord.english}</p>
+                        {currentWord.phonetic && (
+                          <p className="text-base text-[rgba(106,114,130,0.6)] mt-1">
+                            {currentWord.phonetic}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {currentWord.otherTranslations && currentWord.otherTranslations.length > 0 && (
+                      <div className="text-center space-y-1">
+                        {currentWord.otherTranslations.map((translation, index) => (
+                          <p key={index} className="text-base text-[rgba(74,85,101,0.7)]">
+                            {translation}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+
+                    {currentWord.imageUrl && (
+                      <div className="flex justify-center mt-4">
+                        <img
+                          src={currentWord.imageUrl}
+                          alt={currentWord.word}
+                          className="w-48 h-48 object-cover rounded-2xl shadow-md"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Rating buttons */}
-                <div className="flex gap-3 mt-6">
+                <div className="flex gap-4 mt-6 relative z-10">
                   <button
                     onClick={() => handleNext('hard')}
-                    className="flex-1 py-3 text-white rounded-xl transition-colors bg-[#F7893F] hover:bg-[#F7893F]/90"
+                    className={`${tintButtonBase} bg-[#F7893F]/15 hover:bg-[#F7893F]/20 text-[#B85B1F]`}
                   >
                     難しい
                   </button>
                   <button
                     onClick={() => handleNext('good')}
-                    className="flex-1 py-3 text-white rounded-xl transition-colors bg-[#53BEE8] hover:bg-[#53BEE8]/90"
+                    className={`${tintButtonBase} bg-[#53BEE8]/16 hover:bg-[#53BEE8]/22 text-[#1B7FA3]`}
                   >
                     普通
                   </button>
                   <button
                     onClick={() => handleNext('easy')}
-                    className="flex-1 py-3 text-white rounded-xl transition-colors bg-[#2AC69E] hover:bg-[#2AC69E]/90"
+                    className={`${tintButtonBase} bg-[#2AC69E]/16 hover:bg-[#2AC69E]/22 text-[#147A61]`}
                   >
                     簡単
                   </button>
@@ -385,172 +461,116 @@ export function FlashcardScreen({ words, folders, onUpdateWord }: FlashcardScree
           </div>
         </div>
 
-        {/* Reset button */}
-        <div className="mt-6 flex justify-center">
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-2 px-6 py-3 bg-white rounded-full shadow-sm hover:shadow-md transition-shadow text-gray-700"
-          >
-            <RotateCcw size={18} />
-            最初から
-          </button>
+        <div className="text-center mt-8 mb-4">
+          <p className="text-gray-400 text-base">
+            {isFlipped ? '評価を選択してください' : 'カードをタップして裏面を表示'}
+          </p>
         </div>
+      </div>
 
-        {/* Settings panel */}
-        {showSettings && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-30 flex items-center justify-center p-4" 
-            onClick={() => setShowSettings(false)}
-          >
-            <div 
-              className="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto" 
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl">学習設定</h3>
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={24} className="text-gray-500" />
-                </button>
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl">
+              <h2 className="text-xl">学習設定</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={24} className="text-gray-600" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <h3 className="text-base mb-3 text-gray-700">学習範囲を選択</h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {folders.map((folder) => (
+                    <label
+                      key={folder.id}
+                      className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedFolders.includes(folder.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedFolders([...selectedFolders, folder.id]);
+                          } else {
+                            setSelectedFolders(selectedFolders.filter((id) => id !== folder.id));
+                          }
+                        }}
+                        className="w-5 h-5 text-[#53BEE8] rounded focus:ring-2 focus:ring-[#53BEE8] border-gray-300"
+                      />
+                      <span className="text-gray-700">{folder.name}</span>
+                    </label>
+                  ))}
+                  <label className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedFolders.includes('no-folder')}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedFolders([...selectedFolders, 'no-folder']);
+                        } else {
+                          setSelectedFolders(selectedFolders.filter((id) => id !== 'no-folder'));
+                        }
+                      }}
+                      className="w-5 h-5 text-[#53BEE8] rounded focus:ring-2 focus:ring-[#53BEE8] border-gray-300"
+                    />
+                    <span className="text-gray-500 italic">フォルダ未設定の単語</span>
+                  </label>
+                </div>
               </div>
 
-              <div className="space-y-6">
-                {/* Learning range setting */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium text-gray-700">学習範囲</label>
+              <div>
+                <h3 className="text-base mb-3 text-gray-700">カード正面の表示</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: 'japanese' as FrontDisplayType, label: '日本語', icon: '🇯🇵' },
+                    { value: 'chinese' as FrontDisplayType, label: '中国語', icon: '🇨🇳' },
+                    { value: 'english' as FrontDisplayType, label: '英語', icon: '🇬🇧' },
+                    { value: 'image' as FrontDisplayType, label: '画像', icon: '🖼️' },
+                  ].map((option) => (
                     <button
-                      onClick={toggleAllFolders}
-                      className="text-xs text-[#53BEE8] hover:text-[#53BEE8]/80 transition-colors"
+                      key={option.value}
+                      onClick={() => setFrontDisplayType(option.value)}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        frontDisplayType === option.value
+                          ? 'border-[#53BEE8] bg-[#53BEE8]/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
                     >
-                      {selectedFolders.length === folders.length + 1 ? 'すべて解除' : 'すべて選択'}
+                      <div className="text-2xl mb-1">{option.icon}</div>
+                      <div className="text-sm text-gray-700">{option.label}</div>
                     </button>
-                  </div>
-                  <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
-                    <div className="divide-y divide-gray-100">
-                      {folders.map((folder) => (
-                        <label
-                          key={folder.id}
-                          className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedFolders.includes(folder.id)}
-                            onChange={() => toggleFolder(folder.id)}
-                            className="w-4 h-4 rounded border-gray-300 text-[#53BEE8] focus:ring-[#53BEE8] cursor-pointer"
-                          />
-                          <span className="text-sm text-gray-700 flex-1">{folder.name}</span>
-                          <span className="text-xs text-gray-400">
-                            {words.filter(w => w.folders?.includes(folder.id)).length}
-                          </span>
-                        </label>
-                      ))}
-                      
-                      <label className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={selectedFolders.includes('no-folder')}
-                          onChange={() => toggleFolder('no-folder')}
-                          className="w-4 h-4 rounded border-gray-300 text-[#53BEE8] focus:ring-[#53BEE8] cursor-pointer"
-                        />
-                        <span className="text-sm text-gray-700 flex-1">フォルダなし</span>
-                        <span className="text-xs text-gray-400">
-                          {words.filter(w => !w.folders || w.folders.length === 0).length}
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    選択: {selectedFolders.length}個 / 全{folders.length + 1}個
-                  </p>
+                  ))}
                 </div>
+              </div>
 
-                {/* Front display setting */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    カード正面の表示
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                      <input
-                        type="radio"
-                        name="frontDisplay"
-                        value="japanese"
-                        checked={frontDisplayType === 'japanese'}
-                        onChange={(e) => setFrontDisplayType(e.target.value as FrontDisplayType)}
-                        className="w-4 h-4 text-[#53BEE8] focus:ring-[#53BEE8] cursor-pointer"
-                      />
-                      <span className="text-sm text-gray-700">日本語</span>
-                    </label>
-                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                      <input
-                        type="radio"
-                        name="frontDisplay"
-                        value="chinese"
-                        checked={frontDisplayType === 'chinese'}
-                        onChange={(e) => setFrontDisplayType(e.target.value as FrontDisplayType)}
-                        className="w-4 h-4 text-[#53BEE8] focus:ring-[#53BEE8] cursor-pointer"
-                      />
-                      <span className="text-sm text-gray-700">中国語</span>
-                    </label>
-                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                      <input
-                        type="radio"
-                        name="frontDisplay"
-                        value="english"
-                        checked={frontDisplayType === 'english'}
-                        onChange={(e) => setFrontDisplayType(e.target.value as FrontDisplayType)}
-                        className="w-4 h-4 text-[#53BEE8] focus:ring-[#53BEE8] cursor-pointer"
-                      />
-                      <span className="text-sm text-gray-700">英語</span>
-                    </label>
-                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                      <input
-                        type="radio"
-                        name="frontDisplay"
-                        value="image"
-                        checked={frontDisplayType === 'image'}
-                        onChange={(e) => setFrontDisplayType(e.target.value as FrontDisplayType)}
-                        className="w-4 h-4 text-[#53BEE8] focus:ring-[#53BEE8] cursor-pointer"
-                      />
-                      <span className="text-sm text-gray-700">画像</span>
-                    </label>
-                  </div>
-                  <div className="mt-3 p-3 bg-[#53BEE8]/10 rounded-lg">
-                    <p className="text-xs text-gray-600">
-                      <strong>フォールバック順序：</strong><br />
-                      選択した内容がない場合、日本語 → 中国語 → 英語 → 画像の順で代替表示されます
-                    </p>
-                  </div>
-                </div>
-
-                {/* Study rules info */}
-                <div className="p-4 bg-gradient-to-br from-[#53BEE8]/10 to-[#2AC69E]/10 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">復習ルール</h4>
-                  <ul className="text-xs text-gray-600 space-y-1">
-                    <li>• <strong className="text-[#F7893F]">難しい</strong> → 翌日に再表示</li>
-                    <li>• <strong className="text-[#53BEE8]">普通</strong> → 3日後に再表示</li>
-                    <li>• <strong className="text-[#2AC69E]">簡単</strong> → 1週間後に再表示</li>
-                    <li>• 連続2回「普通」→「簡単」に変換</li>
-                    <li>• 連続2回「簡単」→ 学習完了</li>
-                  </ul>
-                </div>
-
-                {/* Close button */}
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="w-full py-3 bg-[#53BEE8] text-white rounded-lg hover:bg-[#53BEE8]/90 transition-colors border-none"
-                >
-                  設定を保存
-                </button>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                <p className="text-sm text-blue-800">💡 学習システムについて</p>
+                <ul className="text-xs text-blue-700 mt-2 space-y-1 list-disc list-inside">
+                  <li>「難しい」→ 翌日に復習</li>
+                  <li>「普通」→ 3日後に復習</li>
+                  <li>「簡単」→ 1週間後に復習</li>
+                  <li>「簡単」または「普通」を2回連続 → 次のレベルへ</li>
+                  <li>「簡単」レベルで2回連続「簡単」→ 学習完了</li>
+                </ul>
               </div>
             </div>
+
+            <div className="p-6 border-t border-gray-200 sticky bottom-0 bg-white rounded-b-2xl">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="w-full py-3 bg-[#53BEE8] text-white rounded-lg hover:bg-[#53BEE8]/90 transition-colors border-none"
+              >
+                閉じる
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

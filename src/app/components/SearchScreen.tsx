@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Clock } from 'lucide-react';
+import { Search, X, Clock, ArrowLeft } from 'lucide-react';
 import { Word, SearchHistory } from '../types';
+import svgPaths from '../../imports/svg-sku2zuchb5';
 
 interface SearchScreenProps {
   words: Word[];
@@ -22,6 +23,11 @@ export function SearchScreen({ words }: SearchScreenProps) {
     if (storedHistory) {
       setSearchHistory(JSON.parse(storedHistory));
     }
+  }, []);
+
+  // Auto-focus on mount
+  useEffect(() => {
+    inputRef.current?.focus();
   }, []);
 
   // 検索履歴を保存
@@ -83,146 +89,132 @@ export function SearchScreen({ words }: SearchScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-4xl mx-auto">
-        {/* ヘッダー・検索入力欄 */}
-        <div className="bg-white p-4 shadow-sm sticky top-0 z-10 rounded-t-[0px] rounded-b-[10px]">
-          <h1 className="text-2xl mb-4 flex items-center gap-2">
-            <Search size={28} className="text-[#53BEE8]" />
-            検索
-          </h1>
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={20}
-            />
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="単語を検索..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsSearching(e.target.value.length > 0);
-              }}
-              onFocus={() => setIsSearching(searchQuery.length > 0)}
-              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setIsSearching(false);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
-            )}
+    <div className="min-h-screen bg-[#F5F7FA] pb-20 overflow-x-hidden flex flex-col">
+      {/* Floating back button */}
+      <div className="fixed top-6 left-6 z-50">
+        <button
+          onClick={() => navigate(-1)}
+          className="h-12 w-12 flex items-center justify-center bg-white/80 backdrop-blur-xl rounded-full shadow-md ring-1 ring-black/5"
+        >
+          <ArrowLeft size={20} />
+        </button>
+      </div>
+
+      {/* メインコンテンツ */}
+      <div className="w-full max-w-5xl mx-auto mt-24 px-4 sm:px-6 lg:px-10 flex-1">
+        {/* 検索ボックス */}
+        <div className="relative mb-6">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+            <Search size={20} />
           </div>
+          <input
+            ref={inputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setIsSearching(true);
+            }}
+            placeholder="単語を検索..."
+            className="w-full pl-12 pr-12 py-4 rounded-[15px] bg-white shadow-md border border-gray-100 focus:outline-none focus:ring-2 focus:ring-[#53BEE8] focus:border-transparent text-[16px]"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setIsSearching(false);
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
-        <div className="p-4">
-          {/* 検索結果ドロップダウン（検索入力中のみ表示） */}
-          {isSearching && searchQuery.trim() && (
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 mb-4 max-h-96 overflow-y-auto">
-              {filteredWords.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <p>「{searchQuery}」に一致する単語が見つかりません</p>
-                </div>
-              ) : (
-                <div>
-                  <div className="p-3 bg-gray-50 border-b border-gray-200">
-                    <p className="text-sm text-gray-600">
-                      {filteredWords.length}件の結果
-                    </p>
-                  </div>
-                  {filteredWords.map((word) => (
-                    <button
-                      key={word.id}
-                      onClick={() => handleSelectWord(word.id)}
-                      className="w-full p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 text-left"
-                    >
-                      <div className="flex items-start justify-between mb-1">
-                        <div className="flex-1">
-                          <p className="text-lg">{word.word}</p>
-                          <p className="text-sm text-gray-600">{word.katakana}</p>
-                        </div>
-                        {word.tags && word.tags.length > 0 && (
-                          <span className="text-xs bg-[#53BEE8]/10 text-[#53BEE8] px-2 py-1 rounded">
-                            {word.tags[0]}
-                          </span>
+        {/* 検索結果 */}
+        {isSearching && searchQuery.trim() && (
+          <div className="bg-white rounded-[26px] shadow-lg overflow-hidden mb-6">
+            {filteredWords.length > 0 ? (
+              <div className="divide-y divide-[#e6e6e6]">
+                {filteredWords.map((word, index) => (
+                  <button
+                    key={word.id}
+                    onClick={() => handleSelectWord(word.id)}
+                    className="w-full px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-[18px] text-[#404040] mb-1">{word.word}</p>
+                        {word.katakana && (
+                          <p className="text-[14px] text-[#8E8E93]">{word.katakana}</p>
+                        )}
+                        {word.chinese && (
+                          <p className="text-[14px] text-[#8E8E93] mt-1">{word.chinese}</p>
                         )}
                       </div>
-                      {word.english && (
-                        <p className="text-sm text-gray-500">{word.english}</p>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 検索履歴（検索入力中は非表示） */}
-          {!isSearching && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-gray-700">
-                  <Clock size={18} />
-                  検索履歴
-                </h2>
-                {searchHistory.length > 0 && (
-                  <button
-                    onClick={handleClearAllHistory}
-                    className="text-sm text-[#F7893F] hover:text-[#F7893F]/80"
-                  >
-                    すべて削除
-                  </button>
-                )}
-              </div>
-
-              {searchHistory.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <p>検索履歴はありません</p>
-                </div>
-              ) : (
-                <div>
-                  {searchHistory.map((history) => (
-                    <div
-                      key={history.id}
-                      className="flex items-center gap-3 p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
-                    >
-                      <button
-                        onClick={() => handleSelectHistory(history.query)}
-                        className="flex-1 flex items-center gap-3 text-left"
-                      >
-                        <Clock size={16} className="text-gray-400 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-gray-700">{history.query}</p>
-                          <p className="text-xs text-gray-400">
-                            {new Date(history.timestamp).toLocaleString('ja-JP', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
-                        </div>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteHistory(history.id)}
-                        className="p-2 text-gray-400 hover:text-[#F7893F] transition-colors"
-                      >
-                        <X size={18} />
-                      </button>
+                      <div className="ml-3 text-[#99A1AF]">
+                        <svg className="block size-5" fill="none" viewBox="0 0 20 20">
+                          <path d={svgPaths.p83a7740} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.666" />
+                        </svg>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="px-5 py-12 text-center">
+                <p className="text-[#8E8E93] text-[16px]">検索結果が見つかりません</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 検索履歴 */}
+        {!isSearching && searchHistory.length > 0 && (
+          <div className="bg-white rounded-[26px] shadow-lg overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#e6e6e6] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock size={18} className="text-[#8E8E93]" />
+                <h3 className="text-[16px] text-[#404040]">検索履歴</h3>
+              </div>
+              <button
+                onClick={handleClearAllHistory}
+                className="text-[14px] text-[#53BEE8] hover:text-[#53BEE8]/80"
+              >
+                すべて削除
+              </button>
             </div>
-          )}
-        </div>
+            <div className="divide-y divide-[#e6e6e6]">
+              {searchHistory.map((history) => (
+                <div
+                  key={history.id}
+                  className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
+                >
+                  <button
+                    onClick={() => handleSelectHistory(history.query)}
+                    className="flex-1 text-left text-[16px] text-[#404040]"
+                  >
+                    {history.query}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteHistory(history.id)}
+                    className="ml-3 text-[#8E8E93] hover:text-[#F7893F] transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 空の状態 */}
+        {!isSearching && searchHistory.length === 0 && (
+          <div className="bg-white rounded-[26px] shadow-lg py-16 text-center">
+            <Search size={48} className="mx-auto text-[#d9d9d9] mb-4" />
+            <p className="text-[#8E8E93] text-[16px]">検索履歴がありません</p>
+          </div>
+        )}
       </div>
     </div>
   );

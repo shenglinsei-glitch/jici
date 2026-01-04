@@ -1,118 +1,364 @@
-import { useState, useEffect, ChangeEvent } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom'; 
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { WordListScreen } from './components/WordListScreen';
 import { SearchScreen } from './components/SearchScreen';
 import { WordAddScreen } from './components/WordAddScreen';
 import { WordDetailScreen } from './components/WordDetailScreen';
 import { WordEditScreen } from './components/WordEditScreen';
 import { FlashcardScreen } from './components/FlashcardScreen';
-import { Navigation } from './components/Navigation'; // 确保导入了导航栏
+import { Navigation } from './components/Navigation';
 import { Word, Folder } from './types';
 
+const WORDS_KEY = 'vocabulary-words';
+const FOLDERS_KEY = 'vocabulary-folders';
+
+// 初期データ
+const initialWords: Word[] = [
+  {
+    id: '1',
+    word: '友達',
+    katakana: 'トモダチ',
+    chinese: '朋友',
+    english: 'friend',
+    phonetic: '/frend/',
+    otherTranslations: ['仲間', 'companion'],
+    tags: ['名詞', '人'],
+    folders: ['folder1'],
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    word: '勉強',
+    katakana: 'ベンキョウ',
+    chinese: '学习',
+    english: 'study',
+    phonetic: '/ˈstʌdi/',
+    otherTranslations: ['学習', 'learning'],
+    tags: ['名詞', '動詞'],
+    folders: ['folder1'],
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    word: '美しい',
+    katakana: 'ウツクシイ',
+    chinese: '美丽',
+    english: 'beautiful',
+    phonetic: '/ˈbjuːtɪfəl/',
+    tags: ['形容詞'],
+    folders: ['folder2'],
+    createdAt: new Date().toISOString(),
+  },
+];
+
+const initialFolders: Folder[] = [
+  {
+    id: 'folder1',
+    name: 'JLPT N5',
+    parentId: null,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'folder2',
+    name: 'JLPT N4',
+    parentId: null,
+    createdAt: new Date().toISOString(),
+  },
+];
+
 function App() {
-  const [words, setWords] = useState<Word[]>(() => {
-    try {
-      const raw = localStorage.getItem('words');
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  });
+  const [words, setWords] = useState<Word[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
 
-  const [folders, setFolders] = useState<Folder[]>(() => {
-    try {
-      const raw = localStorage.getItem('folders');
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  });
-
+  // ローカルストレージからデータを読み込む
   useEffect(() => {
-    localStorage.setItem('words', JSON.stringify(words));
+    const storedWords = localStorage.getItem(WORDS_KEY);
+    const storedFolders = localStorage.getItem(FOLDERS_KEY);
+    
+    if (storedWords) {
+      setWords(JSON.parse(storedWords));
+    } else {
+      setWords(initialWords);
+    }
+
+    if (storedFolders) {
+      setFolders(JSON.parse(storedFolders));
+    } else {
+      setFolders(initialFolders);
+    }
+  }, []);
+
+  // データをローカルストレージに保存
+  useEffect(() => {
+    if (words.length > 0) {
+      localStorage.setItem(WORDS_KEY, JSON.stringify(words));
+    }
   }, [words]);
 
   useEffect(() => {
-    localStorage.setItem('folders', JSON.stringify(folders));
+    if (folders.length > 0) {
+      localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+    }
   }, [folders]);
 
-  const handleAddFolder = (name: string, parentId: string | null) => {
-    const newFolder: Folder = { id: Date.now().toString(), name, parentId, createdAt: new Date().toISOString() };
-    setFolders(prev => [...prev, newFolder]);
+  // データエクスポート機能
+  const handleExportData = () => {
+    console.log('========== エクスポート開始 ==========');
+    console.log('単語数:', words.length);
+    console.log('フォルダ数:', folders.length);
+    
+    const data = {
+      words,
+      folders,
+      exportDate: new Date().toISOString(),
+      version: '1.0',
+    };
+
+    const dataStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `vocabulary-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    console.log('エクスポート完了');
+    alert('データをエクスポートしました！');
   };
 
-  const handleUpdateFolder = (id: string, name: string) => {
-    setFolders(prev => prev.map(f => (f.id === id ? { ...f, name } : f)));
+  // データインポート機能
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('========== インポート開始 ==========');
+    console.log('イベント:', event);
+    console.log('ファイル:', event.target.files);
+    
+    const file = event.target.files?.[0];
+    if (!file) {
+      console.log('ファイルが選択されていません');
+      return;
+    }
+
+    console.log('ファイル名:', file.name);
+    console.log('ファイルサイズ:', file.size);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+
+        console.log('読み込んだデータ:', data);
+
+        // データ検証
+        if (!data.words || !Array.isArray(data.words)) {
+          alert('無効なデータ形式です。単語データが見つかりません。');
+          return;
+        }
+
+        if (!data.folders || !Array.isArray(data.folders)) {
+          alert('無効なデータ形式です。フォルダデータが見つかりません。');
+          return;
+        }
+
+        // 確認ダイアログ
+        const confirmMessage = `現在のデータを上書きしますか？\n\nインポートするデータ：\n・単語: ${data.words.length}件\n・フォルダ: ${data.folders.length}件\n\n現在のデータ：\n・単語: ${words.length}件\n・フォルダ: ${folders.length}件`;
+        
+        if (window.confirm(confirmMessage)) {
+          setWords(data.words);
+          setFolders(data.folders);
+          localStorage.setItem(WORDS_KEY, JSON.stringify(data.words));
+          localStorage.setItem(FOLDERS_KEY, JSON.stringify(data.folders));
+          alert('データのインポートに成功しました！');
+          console.log('インポート完了');
+        }
+      } catch (error) {
+        alert('ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。');
+        console.error('Import error:', error);
+      }
+    };
+
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input
   };
 
-  const handleDeleteFolder = (id: string) => {
-    setFolders(prev => prev.filter(f => f.id !== id));
-    setWords(prev => prev.map(w => ({ ...w, folders: (w.folders || []).filter(fid => fid !== id) })));
+  const handleAddWord = (wordData: Omit<Word, 'id' | 'createdAt'>) => {
+    const newWord: Word = {
+      ...wordData,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    };
+    setWords([...words, newWord]);
   };
 
-  const handleRemoveWordFromFolder = (wordId: string, folderId: string) => {
-    setWords(prev => prev.map(w => (w.id === wordId ? { ...w, folders: (w.folders || []).filter(fid => fid !== folderId) } : w)));
+  const handleAddWords = (wordsData: Omit<Word, 'id' | 'createdAt'>[]) => {
+    const newWords: Word[] = wordsData.map((wordData, index) => ({
+      ...wordData,
+      id: (Date.now() + index).toString(),
+      createdAt: new Date().toISOString(),
+    }));
+    setWords([...words, ...newWords]);
   };
 
-  const handleAddWord = (word: Omit<Word, 'id' | 'createdAt'>) => {
-    const newWord: Word = { ...word, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    setWords(prev => [...prev, newWord]);
-  };
-
-  const handleAddWords = (newWords: Omit<Word, 'id' | 'createdAt'>[]) => {
-    const wordsWithMetadata: Word[] = newWords.map(word => ({ ...word, id: (Date.now() + Math.random()).toString(), createdAt: new Date().toISOString() }));
-    setWords(prev => [...prev, ...wordsWithMetadata]);
-  };
-
-  const handleUpdateWord = (updated: Word) => {
-    setWords(prev => prev.map(w => (w.id === updated.id ? updated : w)));
-  };
-
-  const handleUpdateWordForEdit = (id: string, word: Omit<Word, 'id' | 'createdAt'>) => {
-    const existingWord = words.find(w => w.id === id);
-    const updated: Word = { ...word, id, createdAt: existingWord?.createdAt || new Date().toISOString() };
-    handleUpdateWord(updated);
+  const handleUpdateWord = (id: string, wordData: Omit<Word, 'id' | 'createdAt'>) => {
+    setWords(words.map((word) => 
+      word.id === id 
+        ? { ...word, ...wordData }
+        : word
+    ));
   };
 
   const handleDeleteWord = (id: string) => {
-    setWords(prev => prev.filter(w => w.id !== id));
+    setWords(words.filter((word) => word.id !== id));
   };
 
-  const handleExportData = () => {
-    const data = JSON.stringify({ words, folders }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'jici-export.json';
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleRemoveWordFromFolder = (wordId: string, folderId: string) => {
+    setWords(words.map((word) => {
+      if (word.id === wordId) {
+        const updatedFolders = word.folders?.filter((id) => id !== folderId) || [];
+        return {
+          ...word,
+          folders: updatedFolders.length > 0 ? updatedFolders : undefined,
+        };
+      }
+      return word;
+    }));
   };
 
-  const handleImportData = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(String(reader.result));
-          if (Array.isArray(parsed.words)) setWords(parsed.words);
-          if (Array.isArray(parsed.folders)) setFolders(parsed.folders);
-        } catch (e) { console.error('import failed', e); }
-      };
-      reader.readAsText(file);
-    }
+  const handleAddFolder = (name: string, parentId: string | null) => {
+    const newFolder: Folder = {
+      id: Date.now().toString(),
+      name,
+      parentId,
+      createdAt: new Date().toISOString(),
+    };
+    setFolders([...folders, newFolder]);
+  };
+
+  const handleUpdateFolder = (id: string, name: string) => {
+    setFolders(folders.map((folder) =>
+      folder.id === id
+        ? { ...folder, name }
+        : folder
+    ));
+  };
+
+  const handleDeleteFolder = (id: string) => {
+    // フォルダを削除し、そのフォダ内の単語のフォルダ参照を削除
+    setWords(words.map((word) => ({
+      ...word,
+      folders: word.folders?.filter((folderId) => folderId !== id),
+    })));
+
+    // サブフォルダも再帰的に削除
+    const deleteRecursive = (folderId: string) => {
+      const childFolders = folders.filter((f) => f.parentId === folderId);
+      childFolders.forEach((child) => {
+        deleteRecursive(child.id);
+        // 子フォルダの単語からも参照を削除
+        setWords(words.map((word) => ({
+          ...word,
+          folders: word.folders?.filter((id) => id !== child.id),
+        })));
+      });
+    };
+
+    deleteRecursive(id);
+    setFolders(folders.filter((folder) => folder.id !== id && folder.parentId !== id));
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20"> {/* 添加底部间距防止被导航栏挡住 */}
-      <Routes>
-        <Route path="/" element={<Navigate to="/list" replace />} />
-        <Route path="/list" element={<WordListScreen words={words} folders={folders} onAddFolder={handleAddFolder} onUpdateFolder={handleUpdateFolder} onDeleteFolder={handleDeleteFolder} onRemoveWordFromFolder={handleRemoveWordFromFolder} onExportData={handleExportData} onImportData={handleImportData} />} />
-        <Route path="/search" element={<SearchScreen words={words} />} />
-        <Route path="/add" element={<WordAddScreen onAddWord={handleAddWord} onAddWords={handleAddWords} existingWords={words} />} />
-        <Route path="/detail/:id" element={<WordDetailScreen words={words} folders={folders} />} />
-        <Route path="/edit/:id" element={<WordEditScreen words={words} onUpdateWord={handleUpdateWordForEdit} folders={folders} onDeleteWord={handleDeleteWord} onAddFolder={handleAddFolder} onRemoveWordFromFolder={handleRemoveWordFromFolder} />} />
-        <Route path="/flashcard" element={<FlashcardScreen words={words} folders={folders} onUpdateWord={handleUpdateWordForEdit} />} />
-      </Routes>
-      <Navigation /> {/* 确保导航栏在所有页面都显示 */}
-    </div>
+    <BrowserRouter>
+      <div className="min-h-screen bg-gray-50">
+        <Routes>
+          <Route
+            path="/"
+            element={<Navigate to="/list" replace />}
+          />
+          <Route
+            path="/list"
+            element={
+              <>
+                <WordListScreen 
+                  words={words} 
+                  folders={folders}
+                  onAddFolder={handleAddFolder}
+                  onUpdateFolder={handleUpdateFolder}
+                  onDeleteFolder={handleDeleteFolder}
+                  onRemoveWordFromFolder={handleRemoveWordFromFolder}
+                  onExportData={handleExportData}
+                  onImportData={handleImportData}
+                />
+                <Navigation />
+              </>
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              <>
+                <SearchScreen words={words} />
+                <Navigation />
+              </>
+            }
+          />
+          <Route
+            path="/add"
+            element={
+              <>
+                <WordAddScreen 
+                  onAddWord={handleAddWord} 
+                  onAddWords={handleAddWords}
+                  existingWords={words}
+                />
+                <Navigation />
+              </>
+            }
+          />
+          <Route
+            path="/detail/:id"
+            element={
+              <>
+                <WordDetailScreen words={words} folders={folders} />
+                <Navigation />
+              </>
+            }
+          />
+          <Route
+            path="/edit/:id"
+            element={
+              <>
+                <WordEditScreen 
+                  words={words} 
+                  folders={folders}
+                  onUpdateWord={handleUpdateWord} 
+                  onDeleteWord={handleDeleteWord}
+                  onAddFolder={handleAddFolder}
+                  onRemoveWordFromFolder={handleRemoveWordFromFolder}
+                />
+                <Navigation />
+              </>
+            }
+          />
+          <Route
+            path="/flashcard"
+            element={
+              <>
+                <FlashcardScreen 
+                  words={words} 
+                  folders={folders} 
+                  onUpdateWord={handleUpdateWord}
+                />
+                <Navigation />
+              </>
+            }
+          />
+          <Route path="*" element={<Navigate to="/list" replace />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
 

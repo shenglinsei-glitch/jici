@@ -13,8 +13,11 @@ interface WordAddScreenProps {
 interface ParsedWord {
   word: string;
   katakana: string;
+  japaneseExplanation?: string;
   chinese?: string;
   english?: string;
+  phonetic?: string;
+  otherTranslations?: string[];
   error?: string;
   isDuplicate?: boolean;
   isExisting?: boolean;
@@ -32,6 +35,7 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
   const [formData, setFormData] = useState({
     word: '',
     katakana: '',
+    japaneseExplanation: '',
     chinese: '',
     english: '',
     phonetic: '',
@@ -51,6 +55,7 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
       onAddWord({
         word: formData.word,
         katakana: formData.katakana || '',
+        japaneseExplanation: formData.japaneseExplanation || undefined,
         chinese: formData.chinese || undefined,
         english: formData.english || undefined,
         phonetic: formData.phonetic || undefined,
@@ -101,8 +106,9 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
     const result: ParsedWord = {
       word: parts[0] === '-' ? '' : parts[0],
       katakana: parts[1] && parts[1] !== '-' ? parts[1] : '',
-      chinese: parts[2] && parts[2] !== '-' ? parts[2] : undefined,
-      english: parts[3] && parts[3] !== '-' ? parts[3] : undefined,
+      japaneseExplanation: parts[2] && parts[2] !== '-' ? parts[2] : undefined,
+      chinese: parts[3] && parts[3] !== '-' ? parts[3] : undefined,
+      english: parts[4] && parts[4] !== '-' ? parts[4] : undefined,
     };
 
     // Mark as warning if columns are insufficient
@@ -133,8 +139,9 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
           
           const word = row[0]?.toString().trim() || '';
           const katakana = row[1]?.toString().trim() || '';
-          const chinese = row[2]?.toString().trim() || undefined;
-          const english = row[3]?.toString().trim() || undefined;
+          const japaneseExplanation = row[2]?.toString().trim() || undefined;
+          const chinese = row[3]?.toString().trim() || undefined;
+          const english = row[4]?.toString().trim() || undefined;
 
           // Skip if no Japanese word
           if (!word || word === '-') return;
@@ -144,6 +151,7 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
           const item: ParsedWord = {
             word,
             katakana: katakana === '-' ? '' : katakana,
+            japaneseExplanation: japaneseExplanation === '-' ? undefined : japaneseExplanation,
             chinese: chinese === '-' ? undefined : chinese,
             english: english === '-' ? undefined : english,
           };
@@ -215,6 +223,7 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
       .map(d => ({
         word: d.word,
         katakana: d.katakana || '',
+        japaneseExplanation: d.japaneseExplanation,
         chinese: d.chinese,
         english: d.english,
       }));
@@ -236,49 +245,55 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-4xl mx-auto">
-        {/* ヘッダー */}
-        <div className="bg-white p-4 shadow-sm sticky top-0 z-10 rounded-t-[0px] rounded-b-[10px]">
-          <div className="flex items-center gap-3 mb-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-2xl">単語を追加</h1>
+    <div className="min-h-screen bg-[#F5F7FA] pb-20 overflow-x-hidden flex flex-col">
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 flex-1">
+        {/* Floating header */}
+        <div className="relative flex items-center justify-between mt-6 mb-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="h-12 w-12 flex items-center justify-center bg-white/80 backdrop-blur-xl rounded-full shadow-md ring-1 ring-black/5"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="absolute left-1/2 -translate-x-1/2 text-[17px] font-semibold text-gray-900 select-none">
+            単語を追加
           </div>
-
-          {/* 主要なボタン（タブ切り替え） */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('manual')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                activeTab === 'manual'
-                  ? 'bg-[#53BEE8] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Plus size={18} />
-              手動入力
-            </button>
-            <button
-              onClick={() => setActiveTab('import')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                activeTab === 'import'
-                  ? 'bg-[#53BEE8] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Upload size={18} />
-              インポート
-            </button>
-          </div>
+          <div className="h-12 w-12" />
         </div>
 
-        {/* 主要な情報エリア */}
-        <div className="p-4">
+        {/* Tabs */}
+        <div className="mb-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('manual')}
+            className={`flex-1 py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-[15px] ${
+              activeTab === 'manual'
+                ? 'bg-[#53BEE8] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Plus size={18} />
+            手動入力
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('import')}
+            className={`flex-1 py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-[15px] ${
+              activeTab === 'import'
+                ? 'bg-[#53BEE8] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Upload size={18} />
+            インポート
+          </button>
+        </div>
+
+        {/* メインコンテンツ */}
+
+        <div className="pb-6">
           {activeTab === 'manual' ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 space-y-4">
@@ -312,6 +327,22 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
                     placeholder="例: トモダチ"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm mb-2 text-gray-700">
+                    日语释义
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.japaneseExplanation}
+                    onChange={(e) =>
+                      setFormData({ ...formData, japaneseExplanation: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
+                    placeholder="例: 友達・仲間"
+                  />
+                </div>
+
 
                 <div>
                   <label className="block text-sm mb-2 text-gray-700">
@@ -405,6 +436,7 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
                       <tr>
                         <th className="px-2 py-2 text-left">日本語</th>
                         <th className="px-2 py-2 text-left">カタカナ</th>
+                        <th className="px-2 py-2 text-left">日语释义</th>
                         <th className="px-2 py-2 text-left">中国語</th>
                         <th className="px-2 py-2 text-left">英語</th>
                         <th className="px-2 py-2 text-left">状態</th>
@@ -415,6 +447,7 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
                         <tr key={index} className={`border-t ${item.error ? 'bg-red-50' : ''}`}>
                           <td className="px-2 py-2">{item.word || '-'}</td>
                           <td className="px-2 py-2">{item.katakana || '-'}</td>
+                          <td className="px-2 py-2">{item.japaneseExplanation || '-'}</td>
                           <td className="px-2 py-2">{item.chinese || '-'}</td>
                           <td className="px-2 py-2">{item.english || '-'}</td>
                           <td className="px-2 py-2">
@@ -502,7 +535,7 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
                   
                   <p className="font-medium mt-3">データ形式：</p>
                   <div className="bg-white rounded p-2 border border-gray-200 font-mono text-xs">
-                    <div className="text-[#53BEE8] mb-1">日本語 カタカナ 中国語 英語</div>
+                    <div className="text-[#53BEE8] mb-1">日本語 カタカナ 日语释义 中国語 英語</div>
                     <div className="text-gray-500">例: 犬 イヌ 狗 dog</div>
                   </div>
                   
@@ -525,10 +558,14 @@ export function WordAddScreen({ onAddWord, onAddWords, existingWords }: WordAddS
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-gray-500">第3列 →</span>
-                        <span className="text-[#F7893F]">中国語</span>
+                        <span className="text-[#53BEE8]">日语释义</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-gray-500">第4列 →</span>
+                        <span className="text-[#F7893F]">中国語</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">第5列 →</span>
                         <span className="text-[#2AC69E]">英語</span>
                       </div>
                     </div>

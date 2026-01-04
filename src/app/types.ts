@@ -2,6 +2,7 @@ export interface Word {
   id: string;
   word: string; // 日本語
   katakana: string; // カタカナ
+  japaneseExplanation?: string; // 日本語説明
   chinese?: string; // 中国語翻訳
   english?: string; // 英語翻訳
   phonetic?: string; // 英語音標

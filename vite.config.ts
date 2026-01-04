@@ -5,7 +5,10 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // 1. 如果你的 GitHub 仓库地址是 https://xxx.github.io/Formula-Lab/
+  // 那么这里必须改为 '/Formula-Lab/'。如果是根目录，则设为 '/'
   base: '/jici/', 
+
   plugins: [
     react(),
     tailwindcss(),
@@ -13,22 +16,22 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: '积词',
-        short_name: '积词',
-        description: '本地单词学习与记录',
-        start_url: '/jici/', 
+        name: 'Formula Lab',
+        short_name: 'Formula Lab',
+        description: '计算公式实验中心',
+        start_url: '/', // 保持与 base 一致
         display: 'standalone',
         background_color: '#ffffff',
         theme_color: '#53BEE8',
         icons: [
           {
-            src: 'pwa-192x192.png', // ⭐ 必须和 public 下的文件名完全一致
+            src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png', // ⭐ 必须和 public 下的文件名完全一致
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
@@ -37,5 +40,10 @@ export default defineConfig({
       },
     }),
   ],
-  // ... 其余保持不变
+  resolve: {
+    alias: {
+      // 2. 保留新文件中的路径别名配置，防止代码中的 @ 引用失效
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
 })

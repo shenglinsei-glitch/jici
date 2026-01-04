@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Trash2, Plus, X, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Plus, X, Image as ImageIcon, Wand2 } from 'lucide-react';
 import { Word, Folder } from '../types';
 
 interface WordEditScreenProps {
@@ -20,6 +20,7 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
   const [formData, setFormData] = useState({
     word: '',
     katakana: '',
+    japaneseExplanation: '',
     chinese: '',
     english: '',
     phonetic: '',
@@ -33,12 +34,16 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
   const [newTag, setNewTag] = useState('');
   const [newFolder, setNewFolder] = useState('');
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [isGeneratingPhonetic, setIsGeneratingPhonetic] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     if (word) {
       setFormData({
         word: word.word,
         katakana: word.katakana,
+        japaneseExplanation: word.japaneseExplanation || '',
         chinese: word.chinese || '',
         english: word.english || '',
         phonetic: word.phonetic || '',
@@ -52,12 +57,12 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
 
   if (!word) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">単語が見つかりません</p>
           <button
             onClick={() => navigate('/list')}
-            className="text-[#53BEE8] hover:text-[#53BEE8]/80"
+            className="text-[#53BEE8] hover:opacity-70"
           >
             ホームに戻る
           </button>
@@ -72,6 +77,7 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
       onUpdateWord(word.id, {
         word: formData.word,
         katakana: formData.katakana || '',
+        japaneseExplanation: formData.japaneseExplanation || undefined,
         chinese: formData.chinese || undefined,
         english: formData.english || undefined,
         phonetic: formData.phonetic || undefined,
@@ -80,7 +86,7 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
         tags: formData.tags.length > 0 ? formData.tags : undefined,
         folders: formData.folders.length > 0 ? formData.folders : undefined,
       });
-      navigate(`/detail/${word.id}`);
+      navigate(`/detail/${word.id}`, { replace: true });
     }
   };
 
@@ -89,6 +95,107 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
       onDeleteWord(word.id);
       navigate('/list');
     }
+  };
+
+  const handleGeneratePhonetic = async () => {
+    if (!formData.english || !formData.english.trim()) {
+      alert('英語を入力してください');
+      return;
+    }
+
+    const englishWord = formData.english.trim().toLowerCase();
+    setIsGeneratingPhonetic(true);
+
+    try {
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${englishWord}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          alert('英標が見つかりませんでした。\n手動で入力してください。');
+        } else {
+          throw new Error('API request failed');
+        }
+        return;
+      }
+
+      const data = await response.json();
+      
+      // Extract phonetic from the response
+      let phonetic = '';
+      if (data && data.length > 0) {
+        // Try to get phonetic from main object first
+        if (data[0].phonetic) {
+          phonetic = data[0].phonetic;
+        } 
+        // Otherwise try to get from phonetics array
+        else if (data[0].phonetics && data[0].phonetics.length > 0) {
+          // Find first phonetic with text
+          const phoneticObj = data[0].phonetics.find((p: any) => p.text);
+          if (phoneticObj) {
+            phonetic = phoneticObj.text;
+          }
+        }
+      }
+
+      if (phonetic) {
+        // Convert to simplified IPA for learning
+        const simplifiedPhonetic = convertToSimplifiedIPA(phonetic);
+        const wrapped = simplifiedPhonetic.startsWith('/') ? simplifiedPhonetic : `/${simplifiedPhonetic.replace(/^\/|\/$/g,'')}/`;
+        setFormData({ ...formData, phonetic: wrapped });
+        alert('英標を自動生成しました！');
+      } else {
+        alert('英標が見つかりませんでした。\n手動で入力してください。');
+      }
+    } catch (error) {
+      console.error('Error generating phonetic:', error);
+      alert('英標の生成に失敗しました。\nインターネット接続を確認してください。');
+    } finally {
+      setIsGeneratingPhonetic(false);
+    }
+  };
+
+  // Convert IPA to simplified learning version
+  const convertToSimplifiedIPA = (ipa: string): string => {
+    let simplified = ipa;
+
+    // Remove slashes and brackets
+    simplified = simplified.replace(/[\/\[\]]/g, '');
+
+    // IMPORTANT: Replace longer patterns first to avoid conflicts
+    
+    // Vowels - long vowels first (double letters)
+    simplified = simplified.replace(/ɑː/g, 'aa');
+    simplified = simplified.replace(/iː/g, 'ii');
+    simplified = simplified.replace(/uː/g, 'uu');
+    simplified = simplified.replace(/ɔː/g, 'oo');
+    simplified = simplified.replace(/ɜː/g, 'er');
+    
+    // Diphthongs
+    simplified = simplified.replace(/eɪ/g, 'ei');
+    simplified = simplified.replace(/aɪ/g, 'ai');
+    simplified = simplified.replace(/ɔɪ/g, 'oi');
+    simplified = simplified.replace(/aʊ/g, 'au');
+    simplified = simplified.replace(/oʊ/g, 'ou');
+    
+    // Consonant combinations (must come before single consonants)
+    simplified = simplified.replace(/tʃ/g, 'ch');
+    simplified = simplified.replace(/dʒ/g, 'j');
+    
+    // Single vowels
+    simplified = simplified.replace(/[æʌɑə]/g, 'a');
+    simplified = simplified.replace(/[ɛe]/g, 'e');
+    simplified = simplified.replace(/ɪ/g, 'i');
+    simplified = simplified.replace(/ʊ/g, 'u');
+    simplified = simplified.replace(/ɔ/g, 'o');
+    
+    // Consonants
+    simplified = simplified.replace(/ɹ/g, 'r');
+    simplified = simplified.replace(/[θð]/g, 'th');
+    simplified = simplified.replace(/ʃ/g, 'sh');
+    simplified = simplified.replace(/ʒ/g, 'zh');
+    simplified = simplified.replace(/ŋ/g, 'ng');
+
+    return simplified;
   };
 
   const addOtherTranslation = () => {
@@ -163,7 +270,27 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
     return folder ? folder.name : folderId;
   };
 
+  // 既存のすべてのタグを取得（重複なし）
+  const getAllExistingTags = (): string[] => {
+    const allTags = new Set<string>();
+    words.forEach(word => {
+      word.tags?.forEach(tag => allTags.add(tag));
+    });
+    return Array.from(allTags).sort();
+  };
+
+  const selectExistingTag = (tag: string) => {
+    if (!formData.tags.includes(tag)) {
+      setFormData({
+        ...formData,
+        tags: [...formData.tags, tag],
+      });
+      setShowTagDropdown(false);
+    }
+  };
+
   const availableFolders = folders.filter(f => !formData.folders.includes(f.id));
+  const availableTags = getAllExistingTags().filter(tag => !formData.tags.includes(tag));
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -201,22 +328,38 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-4xl mx-auto">
-        {/* ヘッダー */}
-        <div className="bg-white p-4 shadow-sm sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-2xl">単語を編集</h1>
-          </div>
+    <div className="min-h-screen bg-[#F5F7FA] pb-20 overflow-x-hidden flex flex-col">
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 flex-1">
+        {/* Floating header */}
+        <div className="relative flex items-center justify-between mt-6 mb-6">
+          <button
+            type="button"
+            onClick={() => {
+              if (isDirty) {
+                if (window.confirm('変更があります。保存しますか？')) {
+                  document.getElementById('word-edit-submit')?.click();
+                } else {
+                  navigate(`/detail/${word.id}`, { replace: true });
+                }
+              } else {
+                navigate(`/detail/${word.id}`, { replace: true });
+              }
+            }}
+            className="h-12 w-12 flex items-center justify-center bg-white/80 backdrop-blur-xl rounded-full shadow-md ring-1 ring-black/5"
+          >
+            <ArrowLeft size={20} />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="h-12 w-12 flex items-center justify-center bg-white/80 backdrop-blur-xl rounded-full shadow-md ring-1 ring-black/5 text-[#F7893F]"
+          >
+            <Trash2 size={20} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+<form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* 日本語 */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
             <label className="block text-sm mb-2 text-gray-700">
@@ -225,7 +368,7 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
             <input
               type="text"
               value={formData.word}
-              onChange={(e) => setFormData({ ...formData, word: e.target.value })}
+              onChange={(e) => { setIsDirty(true); setFormData({ ...formData, word: e.target.value }); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
               required
             />
@@ -239,9 +382,21 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
             <input
               type="text"
               value={formData.katakana}
-              onChange={(e) => setFormData({ ...formData, katakana: e.target.value })}
+              onChange={(e) => { setIsDirty(true); setFormData({ ...formData, katakana: e.target.value }); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
               placeholder="例: トモダチ"
+            />
+          </div>
+
+          {/* 日本語説明 */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+            <label className="block text-sm mb-2 text-gray-700">日本語説明</label>
+            <input
+              type="text"
+              value={formData.japaneseExplanation}
+              onChange={(e) => { setIsDirty(true); setFormData({ ...formData, japaneseExplanation: e.target.value }); }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
+              placeholder="例: 友人"
             />
           </div>
 
@@ -251,7 +406,7 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
             <input
               type="text"
               value={formData.chinese}
-              onChange={(e) => setFormData({ ...formData, chinese: e.target.value })}
+              onChange={(e) => { setIsDirty(true); setFormData({ ...formData, chinese: e.target.value }); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
               placeholder="例: 朋友"
             />
@@ -263,7 +418,7 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
             <input
               type="text"
               value={formData.english}
-              onChange={(e) => setFormData({ ...formData, english: e.target.value })}
+              onChange={(e) => { setIsDirty(true); setFormData({ ...formData, english: e.target.value }); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
               placeholder="例: friend"
             />
@@ -271,14 +426,29 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
 
           {/* 英語音標 */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-            <label className="block text-sm mb-2 text-gray-700">英語音標</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm text-gray-700">英語音標</label>
+              <button
+                type="button"
+                onClick={handleGeneratePhonetic}
+                disabled={isGeneratingPhonetic || !formData.english}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-[#53BEE8] text-white rounded-lg hover:bg-[#53BEE8]/90 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed border-none"
+              >
+                <Wand2 size={16} />
+                {isGeneratingPhonetic ? '生成中...' : '自動生成'}
+              </button>
+            </div>
             <input
               type="text"
               value={formData.phonetic}
-              onChange={(e) => setFormData({ ...formData, phonetic: e.target.value })}
+              onChange={(e) => { setIsDirty(true); setFormData({ ...formData, phonetic: e.target.value }); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
               placeholder="例: /frend/"
             />
+            <p className="text-xs text-gray-500 mt-2">
+              💡 英語を入力後、「自動生成」ボタンで英標（IPA）を取得できます（要インターネット接続）<br />
+              ※ 学習用簡化IPA（aa/ii/uu/oo = 長音、th/sh/ch等）で表示されます。正確な発音は音声再生を参考にしてください。
+            </p>
           </div>
 
           {/* その他の翻訳 */}
@@ -326,7 +496,7 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
             <input
               type="url"
               value={formData.imageUrl}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+              onChange={(e) => { setIsDirty(true); setFormData({ ...formData, imageUrl: e.target.value }); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#53BEE8] focus:border-[#53BEE8] outline-none"
               placeholder="https://example.com/image.jpg"
             />
@@ -369,6 +539,35 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
                 </div>
               ))}
             </div>
+            
+            {/* 既存タグから選択 */}
+            {availableTags.length > 0 && (
+              <div className="mb-3">
+                <button
+                  type="button"
+                  onClick={() => setShowTagDropdown(!showTagDropdown)}
+                  className="w-full py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-left flex items-center justify-between"
+                >
+                  <span className="text-gray-700">既存タグから選択</span>
+                  <span className={`transform transition-transform ${showTagDropdown ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+                {showTagDropdown && (
+                  <div className="mt-2 max-h-48 overflow-y-auto border border-gray-300 rounded-lg bg-white">
+                    {availableTags.map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => selectExistingTag(tag)}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-2">
               <input
                 type="text"
@@ -458,29 +657,18 @@ export function WordEditScreen({ words, folders, onUpdateWord, onDeleteWord, onA
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate(`/detail/${word.id}`)}
               className="flex-1 py-3 px-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               キャンセル
             </button>
             <button
+              id="word-edit-submit"
               type="submit"
               className="flex-1 py-3 px-6 bg-[#53BEE8] text-white rounded-lg hover:bg-[#53BEE8]/90 transition-colors flex items-center justify-center gap-2 border-none"
             >
               <Save size={20} />
               保存する
-            </button>
-          </div>
-
-          {/* 削除ボタン */}
-          <div className="pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="w-full py-3 px-6 bg-[#F7893F] text-white rounded-lg hover:bg-[#F7893F]/90 transition-colors flex items-center justify-center gap-2 border-none"
-            >
-              <Trash2 size={20} />
-              この単語を削除
             </button>
           </div>
         </form>
